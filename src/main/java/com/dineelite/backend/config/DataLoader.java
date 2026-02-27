@@ -122,23 +122,23 @@ public class DataLoader {
                 // Ignore if table doesn't exist
             }
 
-            // Clear existing entries IN CORRECT ORDER (Children First)
-            notificationRepository.deleteAllInBatch();
-            notificationRepository.flush();
-            commentRepository.deleteAllInBatch();
-            commentRepository.flush();
-            likeRepository.deleteAllInBatch();
-            likeRepository.flush();
-            
-            bookingTableRepository.deleteAllInBatch();
-            bookingTableRepository.flush();
-            bookingRepository.deleteAllInBatch();
-            bookingRepository.flush();
-            advertisementRepository.deleteAllInBatch();
-            menuItemRepository.deleteAllInBatch();
-            timeSlotRepository.deleteAllInBatch();
-            tableRepository.deleteAllInBatch();
-            restaurantRepository.deleteAllInBatch();
+            // Clear existing entries efficiently using TRUNCATE CASCADE
+            try {
+                jdbcTemplate.execute("TRUNCATE TABLE notifications, comments, likes, booking_tables, bookings, advertisements, menu_items, time_slots, restaurant_tables, restaurants CASCADE");
+                System.out.println(">>> Database tables truncated successfully.");
+            } catch (Exception e) {
+                System.out.println(">>> Warning: Truncate failed, falling back to manual delete: " + e.getMessage());
+                notificationRepository.deleteAllInBatch();
+                commentRepository.deleteAllInBatch();
+                likeRepository.deleteAllInBatch();
+                bookingTableRepository.deleteAllInBatch();
+                bookingRepository.deleteAllInBatch();
+                advertisementRepository.deleteAllInBatch();
+                menuItemRepository.deleteAllInBatch();
+                timeSlotRepository.deleteAllInBatch();
+                tableRepository.deleteAllInBatch();
+                restaurantRepository.deleteAllInBatch();
+            }
             
             // Reset Auto-Increment Sequences (PostgreSQL specific)
             try {
