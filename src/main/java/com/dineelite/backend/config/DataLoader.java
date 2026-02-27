@@ -1,6 +1,9 @@
 package com.dineelite.backend.config;
 
 import com.dineelite.backend.entity.*;
+import com.dineelite.backend.enums.BookingStatus;
+import com.dineelite.backend.enums.MediaType;
+import com.dineelite.backend.enums.PaymentStatus;
 import com.dineelite.backend.repository.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.boot.CommandLineRunner;
@@ -8,9 +11,12 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 @Configuration
 public class DataLoader {
@@ -37,7 +43,6 @@ public class DataLoader {
             try {
                 jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN DEFAULT TRUE");
                 jdbcTemplate.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token VARCHAR(255)");
-                System.out.println(">>> Database columns checked/updated.");
             } catch (Exception e) {
                 System.out.println(">>> Note: Column check skipped or failed: " + e.getMessage());
             }
@@ -48,32 +53,26 @@ public class DataLoader {
                 jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
                     "VALUES ('General Admin', 'admin@dineelite.com', '" + hashedAdmin + "', 'ADMIN', true) " +
                     "ON CONFLICT (email) DO NOTHING");
-                System.out.println(">>> Admin user ensured: admin@dineelite.com / admin");
-
+                
                 for (int i = 1; i <= 10; i++) {
                     String hashedPass = passwordEncoder.encode("password" + i);
                     jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
                         "VALUES ('Restaurant Admin " + i + "', 'admin" + i + "@dineelite.com', '" + hashedPass + "', 'ADMIN', true) " +
                         "ON CONFLICT (email) DO NOTHING");
                 }
-                System.out.println(">>> 10 Restaurant admins ensured.");
 
                 String hashedCustomer = passwordEncoder.encode("pass");
                 jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
                     "VALUES ('Rahul Sharma', 'rahul@test.com', '" + hashedCustomer + "', 'CUSTOMER', true) " +
                     "ON CONFLICT (email) DO NOTHING");
-                System.out.println(">>> Customer user ensured: rahul@test.com / pass");
+                System.out.println(">>> All base users ensured.");
             } catch (Exception e) {
                 System.out.println(">>> ERROR creating users: " + e.getMessage());
-                e.printStackTrace();
             }
 
-            // 2. Seed restaurants only if none exist
+            // 2. Seed restaurants and their dependencies (Menu, Tables, Slots)
             try {
-                long restaurantCount = restaurantRepository.count();
-                if (restaurantCount >= 10) {
-                    System.out.println(">>> Restaurants already seeded (" + restaurantCount + " found). Skipping.");
-                } else {
+                if (restaurantRepository.count() == 0) {
                     System.out.println(">>> Seeding restaurants...");
                     String[][] restaurantData = {
                         {"Fine Dine Palace", "Pune", "09:00", "22:00", "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4", "500", "Luxury dining with the finest global cuisine.", "Global", "18.5204", "73.8567"},
@@ -90,12 +89,8 @@ public class DataLoader {
 
                     for (int i = 0; i < restaurantData.length; i++) {
                         String[] data = restaurantData[i];
-                        String adminEmail = "admin" + (i + 1) + "@dineelite.com";
-                        User restaurantAdmin = userRepository.findByEmail(adminEmail).orElse(null);
-                        if (restaurantAdmin == null) {
-                            System.out.println(">>> Warning: Admin not found for " + adminEmail + ", skipping restaurant " + data[0]);
-                            continue;
-                        }
+                        User admin = userRepository.findByEmail("admin" + (i + 1) + "@dineelite.com").orElse(null);
+                        if (admin == null) continue;
 
                         Restaurant r = new Restaurant();
                         r.setName(data[0]);
@@ -108,26 +103,96 @@ public class DataLoader {
                         r.setCuisine(data[7]);
                         r.setLatitude(Double.parseDouble(data[8]));
                         r.setLongitude(Double.parseDouble(data[9]));
-                        r.setHouseRules("1. Smart casual dress code required.\n2. Please arrive 15 minutes before your slot.\n3. Outside food and drinks are not permitted.\n4. Table will be held for maximum 20 minutes.");
-                        r.setAdmin(restaurantAdmin);
-                        restaurantRepository.save(r);
+                        r.setHouseRules("Standard House Rules: Dress code smart casual.");
+                        r.setAdmin(admin);
+                        r = restaurantRepository.save(r);
 
                         addMenu(r, menuItemRepository);
                         addTables(r, tableRepository);
                         addSlots(r, timeSlotRepository);
                     }
-                    System.out.println(">>> 10 Premium Restaurants injected successfully.");
                 }
             } catch (Exception e) {
-                System.out.println(">>> Warning: Restaurant seeding failed (login still works): " + e.getMessage());
+                System.out.println(">>> Restaurant seeding err: " + e.getMessage());
             }
+
+            // 3. Seed Advertisements (Elite Moments)
+            try {
+                if (advertisementRepository.count() == 0) {
+                    System.out.println(">>> Seeding advertisements...");
+                    List<Restaurant> restList = restaurantRepository.findAll();
+                    String[] captions = {
+                        "Experience the finest dining in town! ✨ #FineDining #Elite",
+                        "Our Signature Dish is finally back! 🍷 #MustTry #Gourmet",
+                        "The perfect ambiance for your special moments. ❤️ #RomanticDinner",
+                        "Fresh ingredients, expert chefs, unforgettable taste. 👨‍🍳 #ChefLife",
+                        "Limited time special menu available now! 🍣 #Foodie #DineElite"
+                    };
+                    String[] images = {
+                        "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b",
+                        "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+                        "https://images.unsplash.com/photo-1414235077428-338989a2e8c0",
+                        "https://images.unsplash.com/photo-1559339352-11d035aa65de",
+                        "https://images.unsplash.com/photo-1552566626-52f8b828add9"
+                    };
+
+                    for (Restaurant r : restList) {
+                        for (int i = 0; i < 2; i++) {
+                            Advertisement ad = new Advertisement();
+                            ad.setRestaurant(r);
+                            ad.setMediaUrl(images[new Random().nextInt(images.length)]);
+                            ad.setMediaType(MediaType.POST);
+                            ad.setCaption(captions[new Random().nextInt(captions.length)]);
+                            advertisementRepository.save(ad);
+                        }
+                    }
+                    System.out.println(">>> Advertisements seeded.");
+                }
+            } catch (Exception e) {
+                System.out.println(">>> Ad seeding err: " + e.getMessage());
+            }
+
+            // 4. Seed Bookings (Dashboard Data)
+            try {
+                if (bookingRepository.count() == 0) {
+                    System.out.println(">>> Seeding bookings...");
+                    User customer = userRepository.findByEmail("rahul@test.com").orElse(null);
+                    List<Restaurant> restList = restaurantRepository.findAll();
+                    if (customer != null && !restList.isEmpty()) {
+                        for (Restaurant r : restList) {
+                            List<TimeSlot> slots = timeSlotRepository.findByRestaurant(r);
+                            if (slots.isEmpty()) continue;
+
+                            for (int d = -7; d <= 0; d++) { // Past 7 days
+                                for (int i = 0; i < 2; i++) { // 2 bookings per day
+                                    Booking b = new Booking();
+                                    b.setRestaurant(r);
+                                    b.setUser(customer);
+                                    b.setBookingDate(LocalDate.now().plusDays(d));
+                                    b.setSlot(slots.get(new Random().nextInt(slots.size())));
+                                    b.setGuestCount(2 + new Random().nextInt(4));
+                                    b.setStatus(BookingStatus.COMPLETED);
+                                    b.setPaymentStatus(PaymentStatus.PAID);
+                                    b.setDepositAmount(r.getDepositAmount());
+                                    b.setCreatedAt(LocalDateTime.now().plusDays(d));
+                                    bookingRepository.save(b);
+                                }
+                            }
+                        }
+                        System.out.println(">>> Bookings seeded.");
+                    }
+                }
+            } catch (Exception e) {
+                System.out.println(">>> Booking seeding err: " + e.getMessage());
+            }
+
             System.out.println(">>> DineElite Data Injection COMPLETE.");
         };
     }
 
     private void addMenu(Restaurant r, MenuItemRepository repo) {
-        String[] items = {"Signature Dish", "Chef's Special", "Popular Choice", "Classic Favorite", "Desert Delight"};
-        double[] prices = {450, 600, 350, 250, 180};
+        String[] items = {"Signature Dish", "Chef's Special", "Classic Favorite", "Desert Delight"};
+        double[] prices = {450, 600, 250, 180};
         for (int i = 0; i < items.length; i++) {
             MenuItem m = new MenuItem();
             m.setRestaurant(r);
@@ -139,44 +204,29 @@ public class DataLoader {
     }
 
     private void addTables(Restaurant r, RestaurantTableRepository repo) {
-        int[] capacities = {2, 2, 4, 4, 4, 6, 6, 8, 8, 10};
-        String[] shapes = {"round", "square", "rectangle", "round", "square", "rectangle", "round", "square", "rectangle", "round"};
-        double[][] positions = {
-            {50, 50}, {250, 50}, {450, 50},
-            {50, 250}, {250, 250}, {450, 250},
-            {50, 450}, {250, 450}, {450, 450},
-            {250, 550}
-        };
-
+        int[] capacities = {2, 4, 6, 8};
         for (int i = 0; i < capacities.length; i++) {
             RestaurantTable t = new RestaurantTable();
             t.setRestaurant(r);
             t.setCapacity(capacities[i]);
-            t.setPosX(positions[i][0]);
-            t.setPosY(positions[i][1]);
+            t.setPosX(50.0 + (i * 150));
+            t.setPosY(100.0);
             t.setTableLabel("T" + (i + 1));
-            t.setShape(shapes[i]);
+            t.setShape(i % 2 == 0 ? "round" : "square");
             repo.save(t);
         }
     }
 
     private void addSlots(Restaurant r, TimeSlotRepository repo) {
         LocalTime start = r.getOpeningTime();
-        LocalTime close = r.getClosingTime();
-        
-        while (true) {
-            LocalTime next = start.plusHours(2);
-            if (next.isBefore(start) || next.isAfter(close)) {
-                break;
-            }
-            
+        LocalTime end = r.getClosingTime();
+        while (start.plusHours(2).isBefore(end) || start.plusHours(2).equals(end)) {
             TimeSlot s = new TimeSlot();
+            s.setRestaurant(r); // CRITICAL: This was missing in some versions
             s.setStartTime(start);
-            s.setEndTime(next);
+            s.setEndTime(start.plusHours(2));
             repo.save(s);
-            
-            start = next;
-            if (start.equals(close)) break;
+            start = start.plusHours(2);
         }
     }
 }
