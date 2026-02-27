@@ -46,7 +46,7 @@ public class DataLoader {
             User mainAdmin = userRepository.findByEmail("admin@dineelite.com").orElse(new User());
             mainAdmin.setFullName("General Admin");
             mainAdmin.setEmail("admin@dineelite.com");
-            if (!mainAdmin.getPassword().startsWith("$2a$")) {
+            if (mainAdmin.getPassword() == null || !mainAdmin.getPassword().startsWith("$2a$")) {
                 mainAdmin.setPassword(passwordEncoder.encode("admin"));
                 System.out.println(">>> Hashed General Admin: admin@dineelite.com");
             }
