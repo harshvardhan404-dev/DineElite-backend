@@ -33,6 +33,9 @@ public class AuthController {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
@@ -42,7 +45,7 @@ public class AuthController {
         User user = new User();
         user.setFullName(request.getFullName());
         user.setEmail(request.getEmail());
-        user.setPassword(request.getPassword()); // In production, use BCrypt
+        user.setPassword(passwordEncoder.encode(request.getPassword())); // Secure hashing
         user.setRole(request.getRole());
         user.setEnabled(false); // Disabled until verified
         user.setVerificationToken(UUID.randomUUID().toString());

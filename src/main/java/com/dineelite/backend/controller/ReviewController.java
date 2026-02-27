@@ -20,9 +20,10 @@ public class ReviewController {
 
     @PostMapping(consumes = {"multipart/form-data"})
     public ResponseEntity<ReviewResponse> addReview(
+            org.springframework.security.core.Authentication authentication,
             @RequestPart("review") ReviewRequest request,
             @RequestPart(value = "photos", required = false) MultipartFile[] photos) {
-        return ResponseEntity.ok(reviewService.addReview(request, photos));
+        return ResponseEntity.ok(reviewService.addReview(request, photos, authentication.getName()));
     }
 
     @GetMapping("/restaurant/{restaurantId}")

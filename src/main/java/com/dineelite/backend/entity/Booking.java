@@ -49,6 +49,9 @@ private PaymentStatus paymentStatus;
     @Column(columnDefinition = "TEXT")
     private String guestDietaryNotes;
 
+    @Version
+    private Integer version;
+
     public Integer getBookingId() {
         return bookingId;
     }

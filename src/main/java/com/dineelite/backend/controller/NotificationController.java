@@ -17,14 +17,16 @@ public class NotificationController {
         this.notificationService = notificationService;
     }
 
-    @GetMapping("/{userId}")
-    public ResponseEntity<List<Notification>> getNotifications(@PathVariable Integer userId) {
-        return ResponseEntity.ok(notificationService.getNotificationsForUser(userId));
+    @GetMapping
+    public ResponseEntity<List<Notification>> getNotifications(org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(notificationService.getNotificationsForUserByEmail(email));
     }
 
-    @GetMapping("/{userId}/unread-count")
-    public ResponseEntity<Long> getUnreadCount(@PathVariable Integer userId) {
-        return ResponseEntity.ok(notificationService.getUnreadCount(userId));
+    @GetMapping("/unread-count")
+    public ResponseEntity<Long> getUnreadCount(org.springframework.security.core.Authentication authentication) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(notificationService.getUnreadCountByEmail(email));
     }
 
     @PostMapping("/read/{id}")

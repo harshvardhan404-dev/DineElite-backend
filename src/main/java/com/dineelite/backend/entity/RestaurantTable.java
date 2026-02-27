@@ -30,6 +30,9 @@ public class RestaurantTable {
     @Column(name = "shape", length = 20)
     private String shape; // "round", "square", "rectangle"
 
+    @Version
+    private Integer version;
+
     public Integer getTableId() {
         return tableId;
     }

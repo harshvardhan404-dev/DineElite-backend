@@ -2,6 +2,7 @@ package com.dineelite.backend.config;
 
 import com.dineelite.backend.entity.*;
 import com.dineelite.backend.repository.*;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -27,6 +28,7 @@ public class DataLoader {
             LikeRepository likeRepository,
             CommentRepository commentRepository,
             NotificationRepository notificationRepository,
+            PasswordEncoder passwordEncoder,
             JdbcTemplate jdbcTemplate) {
         return args -> {
             System.out.println(">>> Starting DineElite Data Injection...");
@@ -40,35 +42,44 @@ public class DataLoader {
                 System.out.println(">>> Note: Column check skipped or failed: " + e.getMessage());
             }
 
-            // 1. Create Default General Admin
+            // 1. Create/Sync Default General Admin
             User mainAdmin = userRepository.findByEmail("admin@dineelite.com").orElse(new User());
             mainAdmin.setFullName("General Admin");
             mainAdmin.setEmail("admin@dineelite.com");
-            mainAdmin.setPassword("admin");
+            if (!mainAdmin.getPassword().startsWith("$2a$")) {
+                mainAdmin.setPassword(passwordEncoder.encode("admin"));
+                System.out.println(">>> Hashed General Admin: admin@dineelite.com");
+            }
             mainAdmin.setRole("ADMIN");
+            mainAdmin.setEnabled(true);
             userRepository.save(mainAdmin);
-            System.out.println(">>> Sync/Created General Admin: admin@dineelite.com / admin");
-
-            // 2. Create Unique Restaurant Admins (admin1 to admin10)
+ 
+            // 2. Create/Sync Unique Restaurant Admins (admin1 to admin10)
             for (int i = 1; i <= 10; i++) {
                 String adminEmail = "admin" + i + "@dineelite.com";
                 String adminPass = "password" + i;
                 User rAdmin = userRepository.findByEmail(adminEmail).orElse(new User());
                 rAdmin.setFullName("Admin for Restaurant " + i);
                 rAdmin.setEmail(adminEmail);
-                rAdmin.setPassword(adminPass);
+                if (rAdmin.getPassword() == null || !rAdmin.getPassword().startsWith("$2a$")) {
+                    rAdmin.setPassword(passwordEncoder.encode(adminPass));
+                    System.out.println(">>> Hashed Admin: " + adminEmail);
+                }
                 rAdmin.setRole("ADMIN");
+                rAdmin.setEnabled(true);
                 userRepository.save(rAdmin);
-                System.out.println(">>> Sync/Created Admin: " + adminEmail + " / " + adminPass);
             }
-
+ 
             User customer = userRepository.findByEmail("rahul@test.com").orElse(new User());
             customer.setFullName("Rahul Kumar");
             customer.setEmail("rahul@test.com");
-            customer.setPassword("pass");
+            if (customer.getPassword() == null || !customer.getPassword().startsWith("$2a$")) {
+                customer.setPassword(passwordEncoder.encode("pass"));
+                System.out.println(">>> Hashed Customer: rahul@test.com");
+            }
             customer.setRole("CUSTOMER");
+            customer.setEnabled(true);
             userRepository.save(customer);
-            System.out.println(">>> Sync/Created Customer: rahul@test.com / pass");
 
             // Ensure existing restaurants have coordinates if missing (for legacy data)
             if (restaurantRepository.count() >= 10) {

@@ -57,23 +57,11 @@ public class BookingService {
         Optional<TimeSlot> slotOpt = timeSlotRepository.findById(slotId);
 
         if (userOpt.isEmpty() || restaurantOpt.isEmpty() || slotOpt.isEmpty()) {
-            return new BookingResponse(
-                    "Invalid input data",
-                    null,
-                    null,
-                    null
-            );
-
+            return new BookingResponse("Invalid input data", null, null, null);
         }
 
         if (bookingDate.isBefore(LocalDate.now())) {
-            return new BookingResponse(
-                    "Cannot book past dates",
-                    null,
-                    null,
-                    null
-            );
-
+            return new BookingResponse("Cannot book past dates", null, null, null);
         }
 
         // Prevent booking outside restaurant working hours
@@ -82,102 +70,40 @@ public class BookingService {
 
         if (slot.getStartTime().isBefore(restaurant.getOpeningTime()) ||
             slot.getEndTime().isAfter(restaurant.getClosingTime())) {
-            return new BookingResponse(
-        "Selected slot is outside restaurant working hours",
-        null,
-        null,
-        null
-);
-
+            return new BookingResponse("Selected slot is outside restaurant working hours", null, null, null);
         }
 
-        // Step 1: Get all tables of that restaurant
-        List<RestaurantTable> allTables =
-                tableRepository.findAll()
-                        .stream()
-                        .filter(t -> t.getRestaurant().getRestaurantId().equals(restaurantId))
-                        .collect(Collectors.toList());
-
-        // Step 2: Filter by capacity
-        List<RestaurantTable> suitableTables =
-                allTables.stream()
-                        .filter(t -> t.getCapacity() >= guestCount)
-                        .sorted(Comparator.comparing(RestaurantTable::getCapacity))
-                        .collect(Collectors.toList());
-
-        if (suitableTables.isEmpty()) {
-            return new BookingResponse(
-                    "No table with sufficient capacity",
-                    null,
-                    null,
-                    null
-            );
-        }
-
-        // Step 3: Remove already booked tables
-        List<BookingTable> bookedTables =
-                bookingTableRepository
-                .findByBookingDateAndSlot_SlotIdAndBooking_Status(
-                        bookingDate,
-                        slotId,
-                        BookingStatus.CONFIRMED
-                );
-        List<Integer> bookedTableIds =
-                bookedTables.stream()
-                        .map(bt -> bt.getTable().getTableId())
-                        .collect(Collectors.toList());
-
-        List<RestaurantTable> availableTables =
-                suitableTables.stream()
-                        .filter(t -> !bookedTableIds.contains(t.getTableId()))
-                        .collect(Collectors.toList());
+        // Optimized Table Selection using Repository Query
+        List<RestaurantTable> availableTables = tableRepository.findAvailableTables(
+            restaurantId, bookingDate, slotId, guestCount
+        );
 
         if (availableTables.isEmpty()) {
-            return new BookingResponse(
-                    "No available tables for selected slot",
-                    null,
-                    null,
-                    null
-            );
+            return new BookingResponse("No available tables for selected slot and guest count", null, null, null);
         }
 
-        // Step 4: Choose table
         RestaurantTable selectedTable = null;
-
         if (preferredTableId != null) {
-            Optional<RestaurantTable> preferredOpt = availableTables.stream()
-                    .filter(t -> t.getTableId().equals(preferredTableId))
-                    .findFirst();
+            selectedTable = availableTables.stream()
+                .filter(t -> t.getTableId().equals(preferredTableId))
+                .findFirst()
+                .orElse(null);
 
-            if (preferredOpt.isPresent()) {
-                selectedTable = preferredOpt.get();
-            } else {
-                // Check if it's even in suitable tables but just booked
-                boolean isBooked = bookedTableIds.contains(preferredTableId);
-                boolean hasCapacity = allTables.stream().anyMatch(t -> t.getTableId().equals(preferredTableId) && t.getCapacity() >= guestCount);
-                
-                String errorMsg = "Selected table is not available";
-                if (isBooked) errorMsg = "Selected table is already booked for this slot";
-                else if (!hasCapacity) errorMsg = "Selected table does not have enough capacity for " + guestCount + " guests";
-
-                return new BookingResponse(
-                    errorMsg,
-                    null,
-                    null,
-                    null
-                );
+            if (selectedTable == null) {
+                return new BookingResponse("Selected preferred table is not available or unsuitable", null, null, null);
             }
         } else {
-            // Auto-assign: Choose smallest suitable table
-            selectedTable = availableTables.get(0);
+            // Choose smallest suitable table to maximize efficiency
+            selectedTable = availableTables.stream()
+                .min(Comparator.comparing(RestaurantTable::getCapacity))
+                .get();
         }
 
-        // Step 5: Save booking
+        // Save booking
         Booking booking = new Booking();
         booking.setUser(userOpt.get());
         booking.setRestaurant(restaurantOpt.get());
         booking.setBookingDate(bookingDate);
-
         booking.setSlot(slotOpt.get());
         booking.setGuestCount(guestCount);
         booking.setStatus(BookingStatus.CONFIRMED);
@@ -188,7 +114,7 @@ public class BookingService {
 
         bookingRepository.save(booking);
 
-        // Step 6: Save booking table mapping
+        // Save booking table mapping
         BookingTable bookingTable = new BookingTable();
         bookingTable.setBooking(booking);
         bookingTable.setTable(selectedTable);
@@ -203,70 +129,47 @@ public class BookingService {
             userOpt.get(),
             NotificationType.BOOKING,
             "New Booking! " + userOpt.get().getFullName() + " booked a table for " + guestCount + 
-            " people at " + slotOpt.get().getStartTime() + " on " + bookingDate + 
-            (booking.getGuestDietaryNotes() != null && !booking.getGuestDietaryNotes().isEmpty() ? 
-             " | Guest Notes: " + booking.getGuestDietaryNotes() : "")
+            " on " + bookingDate + " at " + slot.getStartTime()
         );
 
-        return new BookingResponse(
-            "Booking successful",
-            booking.getBookingId(),
-            selectedTable.getTableId(),
-            booking.getStatus().name()
-    );
+        return new BookingResponse("Booking successful", booking.getBookingId(), selectedTable.getTableId(), booking.getStatus().name());
     }
+
     @Transactional
-    public CancelResponse cancelBooking(Integer bookingId) {
+    public CancelResponse cancelBooking(Integer bookingId, String userEmail) { // Added userEmail for IDOR protection
 
         Optional<Booking> bookingOpt = bookingRepository.findById(bookingId);
 
         if (bookingOpt.isEmpty()) {
-            return new CancelResponse(
-                    "Booking not found",
-                    bookingId,
-                    null
-            );
+            return new CancelResponse("Booking not found", bookingId, null);
         }
 
         Booking booking = bookingOpt.get();
 
+        // IDOR Protection: Check if user owns the booking or is an ADMIN
+        if (!booking.getUser().getEmail().equals(userEmail)) {
+            // Optional: check if user is admin of this restaurant
+             boolean isAdmin = booking.getRestaurant().getAdmin().getEmail().equals(userEmail);
+             if (!isAdmin) {
+                 return new CancelResponse("Access denied: You do not own this booking", bookingId, booking.getStatus().name());
+             }
+        }
+
         if (booking.getStatus() == BookingStatus.CANCELLED) {
-            return new CancelResponse(
-                    "Booking already cancelled",
-                    bookingId,
-                    BookingStatus.CANCELLED.name()
-            );
+            return new CancelResponse("Booking already cancelled", bookingId, BookingStatus.CANCELLED.name());
         }
 
-        // 🔥 Cancellation policy (1 hour before slot start)
-        LocalDate bookingDate = booking.getBookingDate();
-        TimeSlot slot = booking.getSlot();
-
-        java.time.LocalDateTime bookingDateTime =
-                java.time.LocalDateTime.of(bookingDate, slot.getStartTime());
-
-        java.time.LocalDateTime now = java.time.LocalDateTime.now();
-
-        if (bookingDateTime.minusHours(1).isBefore(now)) {
-            return new CancelResponse(
-                    "Cannot cancel within 1 hour of booking time",
-                    bookingId,
-                    booking.getStatus().name()
-            );
+        // Cancellation policy (1 hour before slot start)
+        java.time.LocalDateTime bookingDateTime = java.time.LocalDateTime.of(booking.getBookingDate(), booking.getSlot().getStartTime());
+        if (bookingDateTime.minusHours(1).isBefore(java.time.LocalDateTime.now())) {
+            return new CancelResponse("Cannot cancel within 1 hour of booking time", bookingId, booking.getStatus().name());
         }
 
-        // Change status
         booking.setStatus(BookingStatus.CANCELLED);
         bookingRepository.save(booking);
 
         // Release table mapping
-        List<BookingTable> mappings =
-                bookingTableRepository.findAll()
-                        .stream()
-                        .filter(bt -> bt.getBooking().getBookingId().equals(bookingId))
-                        .collect(Collectors.toList());
-
-        bookingTableRepository.deleteAll(mappings);
+        bookingTableRepository.deleteByBooking(booking);
 
         // Notify Admin
         notificationService.createNotification(
@@ -276,11 +179,7 @@ public class BookingService {
             "Booking Cancelled: " + booking.getUser().getFullName() + " for " + booking.getBookingDate()
         );
 
-        return new CancelResponse(
-                "Booking cancelled successfully",
-                bookingId,
-                BookingStatus.CANCELLED.name()
-        );
+        return new CancelResponse("Booking cancelled successfully", bookingId, BookingStatus.CANCELLED.name());
     }
 
     public List<com.dineelite.backend.dto.UserBookingResponse> getUserBookingsDTO(Integer userId) {
@@ -614,6 +513,11 @@ public class BookingService {
         dto.setBookingHeatmap(heatmapData);
 
         return dto;
+    }
+
+    public User getUserByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
     }
 
 

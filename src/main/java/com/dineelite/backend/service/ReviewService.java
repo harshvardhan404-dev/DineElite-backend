@@ -33,8 +33,8 @@ public class ReviewService {
     private FileUploadService fileUploadService;
 
     @Transactional
-    public ReviewResponse addReview(ReviewRequest request, MultipartFile[] photos) {
-        User user = userRepository.findById(request.getUserId())
+    public ReviewResponse addReview(ReviewRequest request, MultipartFile[] photos, String userEmail) {
+        User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         Restaurant restaurant = restaurantRepository.findById(request.getRestaurantId())
                 .orElseThrow(() -> new RuntimeException("Restaurant not found"));

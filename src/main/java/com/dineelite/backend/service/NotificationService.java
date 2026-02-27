@@ -29,6 +29,10 @@ public class NotificationService {
         return notificationRepository.findByRecipient_UserIdOrderByCreatedAtDesc(userId);
     }
 
+    public List<Notification> getNotificationsForUserByEmail(String email) {
+        return notificationRepository.findByRecipient_EmailOrderByCreatedAtDesc(email);
+    }
+
     public void markAsRead(Integer notificationId) {
         notificationRepository.findById(notificationId).ifPresent(n -> {
             n.setRead(true);
@@ -38,5 +42,9 @@ public class NotificationService {
 
     public Long getUnreadCount(Integer userId) {
         return notificationRepository.countByRecipient_UserIdAndIsReadFalse(userId);
+    }
+
+    public Long getUnreadCountByEmail(String email) {
+        return notificationRepository.countByRecipient_EmailAndIsReadFalse(email);
     }
 }

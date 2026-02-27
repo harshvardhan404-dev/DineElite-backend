@@ -2,10 +2,11 @@ package com.dineelite.backend.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.password.NoOpPasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
@@ -26,60 +27,68 @@ public class SecurityConfig {
         http
             .csrf(csrf -> csrf.disable())
             .authorizeHttpRequests(auth -> auth
-
                 // Public endpoints
                 .requestMatchers("/api/restaurants/**").permitAll()
                 .requestMatchers("/api/booking/availability").permitAll()
                 .requestMatchers("/api/booking/available-slots").permitAll()
-                .requestMatchers("/api/booking/create").permitAll()
-                .requestMatchers("/api/booking/history/**").permitAll()
-                .requestMatchers("/api/booking/user/**").permitAll()
-                .requestMatchers("/api/booking/cancel/**").permitAll()
-                .requestMatchers("/api/social/**").permitAll()
-                .requestMatchers("/api/notifications/**").permitAll()
-                .requestMatchers("/api/table-layout/**").permitAll()
                 .requestMatchers("/api/register").permitAll()
                 .requestMatchers("/api/verify").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/advertisements/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/menu/**").permitAll()
 
-                // ADMIN endpoints
+                // Protected
+                .requestMatchers("/api/booking/create").authenticated()
+                .requestMatchers("/api/booking/history/**").authenticated()
+                .requestMatchers("/api/booking/user/**").authenticated()
+                .requestMatchers("/api/booking/cancel/**").authenticated()
+                .requestMatchers("/api/notifications/**").authenticated()
+                .requestMatchers("/api/table-layout/**").authenticated()
+                .requestMatchers("/api/social/**").authenticated()
+
+                // ADMIN
                 .requestMatchers("/api/booking/admin/**").hasRole("ADMIN")
-                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/advertisements/**").permitAll()
-                .requestMatchers(org.springframework.http.HttpMethod.POST, "/api/advertisements").permitAll()
-                .requestMatchers("/api/menu/**").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/advertisements/**").hasRole("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/menu/**").hasRole("ADMIN")
 
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
-                .loginPage("/login") // Frontend route
                 .loginProcessingUrl("/api/login")
-                .defaultSuccessUrl("/api/restaurants", true)
+                .successHandler((request, response, authentication) -> {
+                    response.setStatus(HttpStatus.OK.value());
+                    response.getWriter().write("{\"message\": \"Login successful\"}");
+                })
+                .failureHandler((request, response, exception) -> {
+                    response.setStatus(HttpStatus.UNAUTHORIZED.value());
+                    response.getWriter().write("{\"message\": \"Invalid email or password\"}");
+                })
                 .permitAll()
             )
             .logout(logout -> logout
                 .logoutUrl("/api/logout")
+                .logoutSuccessHandler((request, response, authentication) -> {
+                    response.setStatus(HttpStatus.OK.value());
+                })
                 .permitAll()
             )
             .exceptionHandling(e -> e
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
-            );
+            )
+            .authenticationProvider(authenticationProvider());
 
         return http.build();
     }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
-
-        DaoAuthenticationProvider authProvider =
-                new DaoAuthenticationProvider(userDetailsService);
-
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
-
         return authProvider;
     }
 
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return NoOpPasswordEncoder.getInstance(); // plain text (dev only)
+        return new BCryptPasswordEncoder();
     }
 }

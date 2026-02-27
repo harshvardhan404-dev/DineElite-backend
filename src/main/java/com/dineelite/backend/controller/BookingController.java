@@ -19,15 +19,19 @@ public class BookingController {
     }
 
     @GetMapping("/create")
-    public BookingResponse createBooking(@RequestParam Integer userId,
+    public BookingResponse createBooking(org.springframework.security.core.Authentication authentication,
                                 @RequestParam Integer restaurantId,
                                 @RequestParam String date,
                                 @RequestParam Integer slotId,
                                 @RequestParam Integer guestCount,
                                 @RequestParam(required = false) Integer tableId) {
+        
+        // Get user from DB based on authentication
+        String email = authentication.getName();
+        com.dineelite.backend.entity.User user = bookingService.getUserByEmail(email);
 
         return bookingService.createBooking(
-                userId,
+                user.getUserId(),
                 restaurantId,
                 LocalDate.parse(date),
                 slotId,
@@ -36,13 +40,15 @@ public class BookingController {
         );
     }
     @GetMapping("/cancel/{bookingId}")
-    public CancelResponse cancelBooking(@PathVariable Integer bookingId) {
-        return bookingService.cancelBooking(bookingId);
+    public CancelResponse cancelBooking(org.springframework.security.core.Authentication authentication,
+                                       @PathVariable Integer bookingId) {
+        return bookingService.cancelBooking(bookingId, authentication.getName());
     }
 
-    @GetMapping("/history/{userId}")
-    public List<com.dineelite.backend.dto.UserBookingResponse> getBookingHistory(@PathVariable Integer userId) {
-        return bookingService.getUserBookingsDTO(userId);
+    @GetMapping("/history")
+    public List<com.dineelite.backend.dto.UserBookingResponse> getMyBookingHistory(org.springframework.security.core.Authentication authentication) {
+        com.dineelite.backend.entity.User user = bookingService.getUserByEmail(authentication.getName());
+        return bookingService.getUserBookingsDTO(user.getUserId());
     }
 
     @GetMapping("/admin/restaurant/{restaurantId}/count")
