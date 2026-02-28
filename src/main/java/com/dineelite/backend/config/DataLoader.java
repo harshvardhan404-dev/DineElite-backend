@@ -73,8 +73,9 @@ public class DataLoader {
             // 2. Seed restaurants and their dependencies (Menu, Tables, Slots)
             try {
                 long existingCount = restaurantRepository.count();
-                if (existingCount < 10) {
-                    System.out.println(">>> Seeding restaurants... (existing: " + existingCount + ")");
+                System.out.println(">>> Checking data seeding... (existing restaurants: " + existingCount + ")");
+                { // Always run cleanup/seeding in this phase to fix corrupt data
+                    System.out.println(">>> Starting full data verification and cleanup...");
                     String[][] restaurantData = {
                         {"Fine Dine Palace", "Pune", "09:00", "22:00", "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4", "500", "Luxury dining with the finest global cuisine.", "Global", "18.5204", "73.8567"},
                         {"The Spice Garden", "Mumbai", "11:00", "23:00", "https://images.unsplash.com/photo-1552566626-52f8b828add9", "300", "Authentic Indian spices in a lush garden setting.", "Indian", "19.0760", "72.8777"},
@@ -91,8 +92,14 @@ public class DataLoader {
                     for (int i = 0; i < restaurantData.length; i++) {
                         try {
                             String[] data = restaurantData[i];
-                            // Skip if this restaurant already exists
-                            if (restaurantRepository.findByName(data[0]).isPresent()) continue;
+                            
+                            // Find existing or create new
+                            Restaurant r = restaurantRepository.findByName(data[0]).orElse(null);
+                            if (r == null) {
+                                r = new Restaurant();
+                                r.setName(data[0]);
+                                // ... will be saved below ...
+                            }
 
                             User admin = userRepository.findByEmail("admin" + (i + 1) + "@dineelite.com").orElse(null);
                             if (admin == null) {
@@ -100,8 +107,6 @@ public class DataLoader {
                                 continue;
                             }
 
-                            Restaurant r = new Restaurant();
-                            r.setName(data[0]);
                             r.setAddress(data[1]);
                             r.setOpeningTime(LocalTime.parse(data[2]));
                             r.setClosingTime(LocalTime.parse(data[3]));
@@ -116,14 +121,17 @@ public class DataLoader {
                             r = restaurantRepository.save(r);
                             
                             // Clear existing dependencies to avoid duplicates
+                            System.out.println(">>> Cleaning up dependencies for " + r.getName() + "...");
                             timeSlotRepository.deleteByRestaurant(r);
                             tableRepository.deleteByRestaurant(r);
                             menuItemRepository.deleteByRestaurant(r);
+                            advertisementRepository.deleteByRestaurant(r);
 
+                            System.out.println(">>> Re-seeding components for " + r.getName() + "...");
                             addMenu(r, menuItemRepository);
                             addTables(r, tableRepository);
                             addSlots(r, timeSlotRepository);
-                            System.out.println(">>> Seeded restaurant: " + data[0]);
+                            System.out.println(">>> Finished restaurant: " + data[0]);
                         } catch (Exception e) {
                             System.out.println(">>> Error seeding restaurant " + restaurantData[i][0] + ": " + e.getMessage());
                             e.printStackTrace();
