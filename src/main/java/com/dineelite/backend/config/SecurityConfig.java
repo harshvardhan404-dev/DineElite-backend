@@ -39,6 +39,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/verify").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/advertisements/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/menu/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/reviews/**").permitAll()
 
                 // Protected
                 .requestMatchers("/api/booking/create").authenticated()
@@ -48,6 +49,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/notifications/**").authenticated()
                 .requestMatchers("/api/table-layout/**").authenticated()
                 .requestMatchers("/api/social/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/api/reviews/**").authenticated()
 
                 // ADMIN
                 .requestMatchers("/api/booking/admin/**").hasRole("ADMIN")
@@ -92,10 +94,15 @@ public class SecurityConfig {
         if (frontendUrl == null || frontendUrl.isEmpty()) {
             frontendUrl = "http://localhost:4200";
         }
+        // Strip trailing slash to prevent origin mismatch
+        if (frontendUrl.endsWith("/")) {
+            frontendUrl = frontendUrl.substring(0, frontendUrl.length() - 1);
+        }
         
         configuration.setAllowedOrigins(Arrays.asList(frontendUrl));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Cookie", "Accept"));
+        configuration.setExposedHeaders(Arrays.asList("Set-Cookie"));
         configuration.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
