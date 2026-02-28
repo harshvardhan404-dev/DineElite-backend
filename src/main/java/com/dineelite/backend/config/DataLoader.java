@@ -119,13 +119,13 @@ public class DataLoader {
                             r.setHouseRules("Standard House Rules: Dress code smart casual.");
                             r.setAdmin(admin);
                             r = restaurantRepository.save(r);
-                            
-                            // Clear existing dependencies to avoid duplicates
-                            System.out.println(">>> Cleaning up dependencies for " + r.getName() + "...");
-                            timeSlotRepository.deleteByRestaurant(r);
-                            tableRepository.deleteByRestaurant(r);
-                            menuItemRepository.deleteByRestaurant(r);
-                            advertisementRepository.deleteByRestaurant(r);
+
+                            // Clear existing dependencies FAST using raw SQL if they are cluttered
+                            System.out.println(">>> Performing fast cleanup for " + r.getName() + " (ID: " + r.getRestaurantId() + ")...");
+                            jdbcTemplate.execute("DELETE FROM time_slots WHERE restaurant_id = " + r.getRestaurantId());
+                            jdbcTemplate.execute("DELETE FROM restaurant_tables WHERE restaurant_id = " + r.getRestaurantId());
+                            jdbcTemplate.execute("DELETE FROM menu_items WHERE restaurant_id = " + r.getRestaurantId());
+                            jdbcTemplate.execute("DELETE FROM advertisements WHERE restaurant_id = " + r.getRestaurantId());
 
                             System.out.println(">>> Re-seeding components for " + r.getName() + "...");
                             addMenu(r, menuItemRepository);
