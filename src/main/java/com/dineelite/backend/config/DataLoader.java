@@ -114,6 +114,11 @@ public class DataLoader {
                             r.setHouseRules("Standard House Rules: Dress code smart casual.");
                             r.setAdmin(admin);
                             r = restaurantRepository.save(r);
+                            
+                            // Clear existing dependencies to avoid duplicates
+                            timeSlotRepository.deleteByRestaurant(r);
+                            tableRepository.deleteByRestaurant(r);
+                            menuItemRepository.deleteByRestaurant(r);
 
                             addMenu(r, menuItemRepository);
                             addTables(r, tableRepository);
@@ -121,6 +126,7 @@ public class DataLoader {
                             System.out.println(">>> Seeded restaurant: " + data[0]);
                         } catch (Exception e) {
                             System.out.println(">>> Error seeding restaurant " + restaurantData[i][0] + ": " + e.getMessage());
+                            e.printStackTrace();
                         }
                     }
                     System.out.println(">>> Restaurant seeding finished. Total: " + restaurantRepository.count());
@@ -234,13 +240,18 @@ public class DataLoader {
     private void addSlots(Restaurant r, TimeSlotRepository repo) {
         LocalTime start = r.getOpeningTime();
         LocalTime end = r.getClosingTime();
-        while (start.plusHours(2).isBefore(end) || start.plusHours(2).equals(end)) {
+        int count = 0;
+        while (count < 20) { // Safety break
+            LocalTime next = start.plusHours(2);
+            if (next.isAfter(end) || next.isBefore(start) || next.equals(start)) break;
+            
             TimeSlot s = new TimeSlot();
-            s.setRestaurant(r); // CRITICAL: This was missing in some versions
+            s.setRestaurant(r);
             s.setStartTime(start);
-            s.setEndTime(start.plusHours(2));
+            s.setEndTime(next);
             repo.save(s);
-            start = start.plusHours(2);
+            start = next;
+            count++;
         }
     }
 }
