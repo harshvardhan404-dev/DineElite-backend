@@ -72,8 +72,9 @@ public class DataLoader {
 
             // 2. Seed restaurants and their dependencies (Menu, Tables, Slots)
             try {
-                if (restaurantRepository.count() == 0) {
-                    System.out.println(">>> Seeding restaurants...");
+                long existingCount = restaurantRepository.count();
+                if (existingCount < 10) {
+                    System.out.println(">>> Seeding restaurants... (existing: " + existingCount + ")");
                     String[][] restaurantData = {
                         {"Fine Dine Palace", "Pune", "09:00", "22:00", "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4", "500", "Luxury dining with the finest global cuisine.", "Global", "18.5204", "73.8567"},
                         {"The Spice Garden", "Mumbai", "11:00", "23:00", "https://images.unsplash.com/photo-1552566626-52f8b828add9", "300", "Authentic Indian spices in a lush garden setting.", "Indian", "19.0760", "72.8777"},
@@ -88,32 +89,45 @@ public class DataLoader {
                     };
 
                     for (int i = 0; i < restaurantData.length; i++) {
-                        String[] data = restaurantData[i];
-                        User admin = userRepository.findByEmail("admin" + (i + 1) + "@dineelite.com").orElse(null);
-                        if (admin == null) continue;
+                        try {
+                            String[] data = restaurantData[i];
+                            // Skip if this restaurant already exists
+                            if (restaurantRepository.findByName(data[0]).isPresent()) continue;
 
-                        Restaurant r = new Restaurant();
-                        r.setName(data[0]);
-                        r.setAddress(data[1]);
-                        r.setOpeningTime(LocalTime.parse(data[2]));
-                        r.setClosingTime(LocalTime.parse(data[3]));
-                        r.setImageUrl(data[4]);
-                        r.setDepositAmount(Double.parseDouble(data[5]));
-                        r.setDescription(data[6]);
-                        r.setCuisine(data[7]);
-                        r.setLatitude(Double.parseDouble(data[8]));
-                        r.setLongitude(Double.parseDouble(data[9]));
-                        r.setHouseRules("Standard House Rules: Dress code smart casual.");
-                        r.setAdmin(admin);
-                        r = restaurantRepository.save(r);
+                            User admin = userRepository.findByEmail("admin" + (i + 1) + "@dineelite.com").orElse(null);
+                            if (admin == null) {
+                                System.out.println(">>> Skipping restaurant " + data[0] + " - admin not found");
+                                continue;
+                            }
 
-                        addMenu(r, menuItemRepository);
-                        addTables(r, tableRepository);
-                        addSlots(r, timeSlotRepository);
+                            Restaurant r = new Restaurant();
+                            r.setName(data[0]);
+                            r.setAddress(data[1]);
+                            r.setOpeningTime(LocalTime.parse(data[2]));
+                            r.setClosingTime(LocalTime.parse(data[3]));
+                            r.setImageUrl(data[4]);
+                            r.setDepositAmount(Double.parseDouble(data[5]));
+                            r.setDescription(data[6]);
+                            r.setCuisine(data[7]);
+                            r.setLatitude(Double.parseDouble(data[8]));
+                            r.setLongitude(Double.parseDouble(data[9]));
+                            r.setHouseRules("Standard House Rules: Dress code smart casual.");
+                            r.setAdmin(admin);
+                            r = restaurantRepository.save(r);
+
+                            addMenu(r, menuItemRepository);
+                            addTables(r, tableRepository);
+                            addSlots(r, timeSlotRepository);
+                            System.out.println(">>> Seeded restaurant: " + data[0]);
+                        } catch (Exception e) {
+                            System.out.println(">>> Error seeding restaurant " + restaurantData[i][0] + ": " + e.getMessage());
+                        }
                     }
+                    System.out.println(">>> Restaurant seeding finished. Total: " + restaurantRepository.count());
                 }
             } catch (Exception e) {
                 System.out.println(">>> Restaurant seeding err: " + e.getMessage());
+                e.printStackTrace();
             }
 
             // 3. Seed Advertisements (Elite Moments)
