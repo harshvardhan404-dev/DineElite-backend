@@ -369,17 +369,14 @@ public class BookingService {
 
         Restaurant restaurant = restaurantOpt.get();
 
-        // 1. Get all slots within restaurant hours
-        List<TimeSlot> allSlots = timeSlotRepository.findAll().stream()
-                .filter(s -> !s.getStartTime().isBefore(restaurant.getOpeningTime()) &&
-                             !s.getEndTime().isAfter(restaurant.getClosingTime()))
+        // 1. Get all slots for this restaurant
+        List<TimeSlot> allSlots = timeSlotRepository.findByRestaurant(restaurant).stream()
                 .sorted(Comparator.comparing(TimeSlot::getStartTime))
                 .collect(Collectors.toList());
 
-        // 2. Get tables with enough capacity
-        List<RestaurantTable> suitableTables = tableRepository.findAll().stream()
-                .filter(t -> t.getRestaurant().getRestaurantId().equals(restaurantId) &&
-                             t.getCapacity() >= guestCount)
+        // 2. Get tables with enough capacity for this restaurant
+        List<RestaurantTable> suitableTables = tableRepository.findByRestaurant_RestaurantId(restaurantId).stream()
+                .filter(t -> t.getCapacity() >= guestCount)
                 .collect(Collectors.toList());
 
         if (suitableTables.isEmpty()) return List.of();
@@ -478,10 +475,7 @@ public class BookingService {
         LocalDate today = LocalDate.now();
 
         // Total tables in restaurant
-        Long totalTables = tableRepository.findAll()
-                .stream()
-                .filter(t -> t.getRestaurant().getRestaurantId().equals(restaurantId))
-                .count();
+        Long totalTables = (long) tableRepository.findByRestaurant_RestaurantId(restaurantId).size();
 
         if (totalTables > 0) {
             for (TimeSlot slot : allSlots) {
