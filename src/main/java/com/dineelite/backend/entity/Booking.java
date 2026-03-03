@@ -52,6 +52,17 @@ private PaymentStatus paymentStatus;
     @Version
     private Integer version;
 
+    @OneToMany(mappedBy = "booking", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<BookingItem> bookingItems = new java.util.ArrayList<>();
+
+    public java.util.List<BookingItem> getBookingItems() {
+        return bookingItems;
+    }
+
+    public void setBookingItems(java.util.List<BookingItem> bookingItems) {
+        this.bookingItems = bookingItems;
+    }
+
     public Integer getBookingId() {
         return bookingId;
     }

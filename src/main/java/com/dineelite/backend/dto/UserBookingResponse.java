@@ -15,10 +15,12 @@ public class UserBookingResponse {
     private Double depositAmount;
     private String paymentStatus;
     private String dietaryNotes;
+    private java.util.List<PreOrderItemResponse> preOrderedItems = new java.util.ArrayList<>();
 
     public UserBookingResponse(Integer bookingId, String restaurantName, String address, LocalDate bookingDate,
                                LocalTime startTime, LocalTime endTime, Integer guestCount, String status,
-                               Double depositAmount, String paymentStatus, String dietaryNotes) {
+                               Double depositAmount, String paymentStatus, String dietaryNotes,
+                               java.util.List<PreOrderItemResponse> preOrderedItems) {
         this.bookingId = bookingId;
         this.restaurantName = restaurantName;
         this.address = address;
@@ -30,7 +32,10 @@ public class UserBookingResponse {
         this.depositAmount = depositAmount;
         this.paymentStatus = paymentStatus;
         this.dietaryNotes = dietaryNotes;
+        this.preOrderedItems = preOrderedItems;
     }
+
+    public java.util.List<PreOrderItemResponse> getPreOrderedItems() { return preOrderedItems; }
 
     public String getDietaryNotes() { return dietaryNotes; }
 

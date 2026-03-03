@@ -23,6 +23,14 @@ public class MenuItem {
     @Column(nullable = false)
     private Boolean isAvailable;
 
+    @Column(columnDefinition = "TEXT")
+    private String tags;
+
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
+    private String imageUrl;
+
     public Integer getMenuId() {
         return menuId;
     }
@@ -61,5 +69,29 @@ public class MenuItem {
 
     public void setIsAvailable(Boolean isAvailable) {
         this.isAvailable = isAvailable;
+    }
+
+    public String getTags() {
+        return tags;
+    }
+
+    public void setTags(String tags) {
+        this.tags = tags;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

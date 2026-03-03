@@ -24,6 +24,7 @@ public class BookingService {
     private final UserRepository userRepository;
     private final TimeSlotRepository timeSlotRepository;
     private final MenuItemRepository menuItemRepository;
+    private final BookingItemRepository bookingItemRepository;
     private final NotificationService notificationService;
 
     public BookingService(BookingRepository bookingRepository,
@@ -33,6 +34,7 @@ public class BookingService {
                           UserRepository userRepository,
                           TimeSlotRepository timeSlotRepository,
                           MenuItemRepository menuItemRepository,
+                          BookingItemRepository bookingItemRepository,
                           NotificationService notificationService) {
         this.bookingRepository = bookingRepository;
         this.bookingTableRepository = bookingTableRepository;
@@ -41,6 +43,7 @@ public class BookingService {
         this.userRepository = userRepository;
         this.timeSlotRepository = timeSlotRepository;
         this.menuItemRepository = menuItemRepository;
+        this.bookingItemRepository = bookingItemRepository;
         this.notificationService = notificationService;
     }
 
@@ -50,7 +53,8 @@ public class BookingService {
                                 LocalDate bookingDate,
                                 Integer slotId,
                                 Integer guestCount,
-                                Integer preferredTableId) {
+                                Integer preferredTableId,
+                                List<PreOrderRequest> preOrders) {
 
         Optional<User> userOpt = userRepository.findById(userId);
         Optional<Restaurant> restaurantOpt = restaurantRepository.findById(restaurantId);
@@ -114,6 +118,22 @@ public class BookingService {
 
         bookingRepository.save(booking);
 
+        // Save pre-ordered items
+        if (preOrders != null && !preOrders.isEmpty()) {
+            for (PreOrderRequest po : preOrders) {
+                Optional<MenuItem> itemOpt = menuItemRepository.findById(po.getMenuId());
+                if (itemOpt.isPresent()) {
+                    MenuItem item = itemOpt.get();
+                    BookingItem bi = new BookingItem();
+                    bi.setBooking(booking);
+                    bi.setMenuItem(item);
+                    bi.setQuantity(po.getQuantity());
+                    bi.setPriceAtBooking(item.getPrice());
+                    bookingItemRepository.save(bi);
+                }
+            }
+        }
+
         // Save booking table mapping
         BookingTable bookingTable = new BookingTable();
         bookingTable.setBooking(booking);
@@ -129,7 +149,8 @@ public class BookingService {
             userOpt.get(),
             NotificationType.BOOKING,
             "New Booking! " + userOpt.get().getFullName() + " booked a table for " + guestCount + 
-            " on " + bookingDate + " at " + slot.getStartTime()
+            " on " + bookingDate + " at " + slot.getStartTime() + 
+            (preOrders != null && !preOrders.isEmpty() ? " with pre-ordered dishes!" : "")
         );
 
         return new BookingResponse("Booking successful", booking.getBookingId(), selectedTable.getTableId(), booking.getStatus().name());
@@ -185,7 +206,16 @@ public class BookingService {
     public List<com.dineelite.backend.dto.UserBookingResponse> getUserBookingsDTO(Integer userId) {
         return bookingRepository.findByUser_UserIdOrderByBookingDateDesc(userId)
                 .stream()
-                .map(b -> new com.dineelite.backend.dto.UserBookingResponse(
+                .map(b -> {
+                    java.util.List<PreOrderItemResponse> items = b.getBookingItems().stream()
+                            .map(bi -> new PreOrderItemResponse(
+                                    bi.getMenuItem().getItemName(),
+                                    bi.getQuantity(),
+                                    bi.getPriceAtBooking()
+                            ))
+                            .collect(Collectors.toList());
+
+                    return new com.dineelite.backend.dto.UserBookingResponse(
                         b.getBookingId(),
                         b.getRestaurant().getName(),
                         b.getRestaurant().getAddress(),
@@ -196,8 +226,10 @@ public class BookingService {
                         b.getStatus().name(),
                         b.getDepositAmount(),
                         b.getPaymentStatus().name(),
-                        b.getGuestDietaryNotes()
-                ))
+                        b.getGuestDietaryNotes(),
+                        items
+                    );
+                })
                 .collect(Collectors.toList());
     }
 

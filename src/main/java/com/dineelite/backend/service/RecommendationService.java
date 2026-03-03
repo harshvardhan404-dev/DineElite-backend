@@ -15,10 +15,63 @@ public class RecommendationService {
 
     private final BookingRepository bookingRepository;
     private final RestaurantRepository restaurantRepository;
+    private final com.dineelite.backend.repository.UserRepository userRepository;
+    private final com.dineelite.backend.repository.MenuItemRepository menuItemRepository;
 
-    public RecommendationService(BookingRepository bookingRepository, RestaurantRepository restaurantRepository) {
+    public RecommendationService(BookingRepository bookingRepository, 
+                                 RestaurantRepository restaurantRepository,
+                                 com.dineelite.backend.repository.UserRepository userRepository,
+                                 com.dineelite.backend.repository.MenuItemRepository menuItemRepository) {
         this.bookingRepository = bookingRepository;
         this.restaurantRepository = restaurantRepository;
+        this.userRepository = userRepository;
+        this.menuItemRepository = menuItemRepository;
+    }
+
+    public List<Map<String, Object>> getDishRecommendations(Integer userId) {
+        com.dineelite.backend.entity.User user = userRepository.findById(userId).orElse(null);
+        if (user == null || user.getDietaryPreferences() == null || user.getDietaryPreferences().isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Set<String> userPrefs = Arrays.stream(user.getDietaryPreferences().split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
+
+        List<com.dineelite.backend.entity.MenuItem> allTaggedItems = menuItemRepository.findByTagsNotNullAndIsAvailableTrue();
+
+        return allTaggedItems.stream()
+                .map(item -> {
+                    if (item.getTags() == null) return null;
+                    
+                    Set<String> itemTags = Arrays.stream(item.getTags().split(","))
+                            .map(String::trim)
+                            .map(String::toLowerCase)
+                            .collect(Collectors.toSet());
+
+                    long matchCount = itemTags.stream()
+                            .filter(userPrefs::contains)
+                            .count();
+
+                    if (matchCount > 0) {
+                        double matchPercentage = (double) matchCount / userPrefs.size() * 100;
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("menuId", item.getMenuId());
+                        result.put("itemName", item.getItemName());
+                        result.put("description", item.getDescription());
+                        result.put("price", item.getPrice());
+                        result.put("imageUrl", item.getImageUrl());
+                        result.put("restaurantName", item.getRestaurant().getName());
+                        result.put("matchPercentage", Math.min(100.0, Math.round(matchPercentage)));
+                        return result;
+                    }
+                    return null;
+                })
+                .filter(Objects::nonNull)
+                .sorted((a, b) -> Double.compare((Double) b.get("matchPercentage"), (Double) a.get("matchPercentage")))
+                .limit(6)
+                .collect(Collectors.toList());
     }
 
     public List<RestaurantDTO> getPersonalizedRecommendations(Integer userId) {

@@ -13,6 +13,7 @@ import java.util.List;
 public interface MenuItemRepository extends JpaRepository<MenuItem, Integer> {
     List<MenuItem> findByRestaurantRestaurantIdAndIsAvailableTrue(Integer restaurantId);
     List<MenuItem> findByRestaurantRestaurantId(Integer restaurantId);
+    List<MenuItem> findByTagsNotNullAndIsAvailableTrue();
 
     @Modifying
     @Transactional

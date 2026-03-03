@@ -18,13 +18,9 @@ public class BookingController {
         this.bookingService = bookingService;
     }
 
-    @GetMapping("/create")
+    @PostMapping("/create")
     public BookingResponse createBooking(org.springframework.security.core.Authentication authentication,
-                                @RequestParam Integer restaurantId,
-                                @RequestParam String date,
-                                @RequestParam Integer slotId,
-                                @RequestParam Integer guestCount,
-                                @RequestParam(required = false) Integer tableId) {
+                                         @RequestBody com.dineelite.backend.dto.BookingPostRequest request) {
         
         // Get user from DB based on authentication
         String email = authentication.getName();
@@ -32,11 +28,12 @@ public class BookingController {
 
         return bookingService.createBooking(
                 user.getUserId(),
-                restaurantId,
-                LocalDate.parse(date),
-                slotId,
-                guestCount,
-                tableId
+                request.getRestaurantId(),
+                LocalDate.parse(request.getDate()),
+                request.getSlotId(),
+                request.getGuestCount(),
+                request.getTableId(),
+                request.getPreOrders()
         );
     }
     @GetMapping("/cancel/{bookingId}")

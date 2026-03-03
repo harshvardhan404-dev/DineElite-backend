@@ -221,13 +221,22 @@ public class DataLoader {
     }
 
     private void addMenu(Restaurant r, MenuItemRepository repo) {
-        String[] items = {"Signature Dish", "Chef's Special", "Classic Favorite", "Desert Delight"};
-        double[] prices = {450, 600, 250, 180};
-        for (int i = 0; i < items.length; i++) {
+        String[][] items = {
+            {"Signature Steak", "750", "Steak, Spicy, Heavy", "Premium hand-cut steak grilled to perfection with a spicy chili rub.", "https://images.unsplash.com/photo-1544025162-d76694265947"},
+            {"Garden Salad", "350", "Vegan, Healthy, Fresh", "Fresh organic greens with a zesty lemon vinaigrette.", "https://images.unsplash.com/photo-1512621776951-a57141f2eefd"},
+            {"Spicy Arrabbiata Pasta", "450", "Pasta, Spicy, Italian", "Traditional penne pasta in a fiery tomato and garlic sauce.", "https://images.unsplash.com/photo-1551183053-bf91a1d81141"},
+            {"Vegan Sushi Roll", "500", "Vegan, Japanese, Sushi", "Cucumber, avocado, and pickled radish wrapped in premium seaweed.", "https://images.unsplash.com/photo-1579027989536-b7b1f875659b"},
+            {"Classic Tiramisu", "250", "Dessert, Italian, Sweet", "Authentic Italian coffee-flavored dessert.", "https://images.unsplash.com/photo-1571877223200-58064436573e"}
+        };
+
+        for (String[] data : items) {
             MenuItem m = new MenuItem();
             m.setRestaurant(r);
-            m.setItemName(items[i]);
-            m.setPrice(prices[i]);
+            m.setItemName(data[0]);
+            m.setPrice(Double.parseDouble(data[1]));
+            m.setTags(data[2]);
+            m.setDescription(data[3]);
+            m.setImageUrl(data[4]);
             m.setIsAvailable(true);
             repo.save(m);
         }
