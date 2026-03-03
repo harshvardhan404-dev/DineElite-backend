@@ -103,8 +103,17 @@ public class SecurityConfig {
             frontendUrl = frontendUrl.substring(0, frontendUrl.length() - 1);
         }
         
-        configuration.setAllowedOrigins(Arrays.asList(frontendUrl));
-        System.out.println(">>> CORS: Allowed Origin set to: " + frontendUrl);
+        List<String> allowedOrigins = new java.util.ArrayList<>();
+        allowedOrigins.add("http://localhost:4200");
+        allowedOrigins.add("https://dineelite.netlify.app");
+        allowedOrigins.add("https://admirable-tarsier-c00d50.netlify.app");
+        
+        if (frontendUrl != null && !frontendUrl.isEmpty()) {
+            allowedOrigins.add(frontendUrl);
+        }
+        
+        configuration.setAllowedOrigins(allowedOrigins);
+        System.out.println(">>> CORS: Allowed Origins: " + allowedOrigins);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Cookie", "Accept"));
         configuration.setExposedHeaders(Arrays.asList("Set-Cookie"));
