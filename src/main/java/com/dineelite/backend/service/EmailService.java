@@ -1,6 +1,7 @@
 package com.dineelite.backend.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -11,8 +12,11 @@ public class EmailService {
     @Autowired(required = false)
     private JavaMailSender mailSender;
 
+    @Value("${BACKEND_URL:http://localhost:8081}")
+    private String backendUrl;
+
     public void sendVerificationEmail(String to, String token) {
-        String url = "http://localhost:8081/api/verify?token=" + token;
+        String url = backendUrl + "/api/verify?token=" + token;
         
         if (mailSender == null) {
             System.out.println(">>> [WARNING] JavaMailSender not configured. Email NOT sent.");
