@@ -104,6 +104,7 @@ public class SecurityConfig {
         }
         
         configuration.setAllowedOrigins(Arrays.asList(frontendUrl));
+        System.out.println(">>> CORS: Allowed Origin set to: " + frontendUrl);
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With", "Cookie", "Accept"));
         configuration.setExposedHeaders(Arrays.asList("Set-Cookie"));
