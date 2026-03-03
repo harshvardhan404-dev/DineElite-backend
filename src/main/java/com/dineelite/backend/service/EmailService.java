@@ -15,8 +15,13 @@ public class EmailService {
     @Value("${BACKEND_URL:http://localhost:8081}")
     private String backendUrl;
 
+    @Value("${spring.mail.username:NOT_SET}")
+    private String mailUser;
+
     public void sendVerificationEmail(String to, String token) {
         String url = backendUrl + "/api/verify?token=" + token;
+        
+        System.out.println(">>> Attempting to send email via: " + mailUser + " to: " + to);
         
         if (mailSender == null) {
             System.out.println(">>> [WARNING] JavaMailSender not configured. Email NOT sent.");
