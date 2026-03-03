@@ -61,12 +61,16 @@ public class SecurityConfig {
             .formLogin(form -> form
                 .loginProcessingUrl("/api/login")
                 .successHandler((request, response, authentication) -> {
+                    System.out.println(">>> LOGIN SUCCESS for " + authentication.getName());
                     response.setStatus(HttpStatus.OK.value());
+                    response.setContentType("application/json");
                     response.getWriter().write("{\"message\": \"Login successful\"}");
                 })
                 .failureHandler((request, response, exception) -> {
+                    System.out.println(">>> LOGIN FAILED for " + request.getParameter("username") + ": " + exception.getMessage());
                     response.setStatus(HttpStatus.UNAUTHORIZED.value());
-                    response.getWriter().write("{\"message\": \"Invalid email or password\"}");
+                    response.setContentType("application/json");
+                    response.getWriter().write("{\"message\": \"Login failed: " + exception.getMessage() + "\"}");
                 })
                 .permitAll()
             )
