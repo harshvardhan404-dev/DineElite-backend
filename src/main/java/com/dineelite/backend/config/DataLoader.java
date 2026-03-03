@@ -65,6 +65,11 @@ public class DataLoader {
                 jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
                     "VALUES ('Rahul Sharma', 'rahul@test.com', '" + hashedCustomer + "', 'CUSTOMER', true) " +
                     "ON CONFLICT (email) DO NOTHING");
+
+                // TEMPORARY CLEANUP: Delete specific user to allow re-registration
+                jdbcTemplate.execute("DELETE FROM users WHERE email = 'harshvardhansonawane2@gmail.com'");
+                System.out.println(">>> Cleanup: Deleted user harshvardhansonawane2@gmail.com if it existed.");
+
                 System.out.println(">>> All base users ensured.");
             } catch (Exception e) {
                 System.out.println(">>> ERROR creating users: " + e.getMessage());
