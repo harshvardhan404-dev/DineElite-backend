@@ -66,9 +66,9 @@ public class DataLoader {
                     "VALUES ('Rahul Sharma', 'rahul@test.com', '" + hashedCustomer + "', 'CUSTOMER', true) " +
                     "ON CONFLICT (email) DO NOTHING");
 
-                // TEMPORARY CLEANUP: Delete specific user to allow re-registration
-                jdbcTemplate.execute("DELETE FROM users WHERE email = 'harshvardhansonawane2@gmail.com'");
-                System.out.println(">>> Cleanup: Deleted user harshvardhansonawane2@gmail.com if it existed.");
+                // TEMPORARY CLEANUP: Delete specific users to allow re-registration
+                jdbcTemplate.execute("DELETE FROM users WHERE email IN ('harshvardhansonawane2@gmail.com', 'harshwardhansonawane099@gmail.com')");
+                System.out.println(">>> Cleanup: Deleted users harshvardhansonawane2@gmail.com and harshwardhansonawane099@gmail.com if they existed.");
 
                 System.out.println(">>> All base users ensured.");
             } catch (Exception e) {
