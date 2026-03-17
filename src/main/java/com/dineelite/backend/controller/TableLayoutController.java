@@ -29,6 +29,18 @@ public class TableLayoutController {
     }
 
     /**
+     * Get distinct floor numbers for a restaurant.
+     */
+    @GetMapping("/{restaurantId}/floors")
+    public ResponseEntity<List<Integer>> getFloors(@PathVariable Integer restaurantId) {
+        List<Integer> floors = tableRepository.findDistinctFloorNumbers(restaurantId);
+        if (floors.isEmpty()) {
+            floors = List.of(1);
+        }
+        return ResponseEntity.ok(floors);
+    }
+
+    /**
      * Get availability for all tables in a restaurant for a specific slot.
      */
     @GetMapping("/{restaurantId}/availability")
@@ -38,10 +50,8 @@ public class TableLayoutController {
             @RequestParam Integer slotId,
             @RequestParam Integer guestCount) {
         
-        // 1. Get current layout positions
         List<RestaurantTable> allTables = tableRepository.findByRestaurant_RestaurantId(restaurantId);
         
-        // 2. Get availability status from BookingService
         List<AvailabilityResponse> availability = bookingService.checkAvailability(
                 restaurantId, 
                 LocalDate.parse(date), 
@@ -49,17 +59,9 @@ public class TableLayoutController {
                 guestCount
         );
 
-        // 3. Merge availability data into layout data
         List<Map<String, Object>> result = allTables.stream().map(t -> {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("tableId", t.getTableId());
-            map.put("capacity", t.getCapacity());
-            map.put("posX", t.getPosX() != null ? t.getPosX() : 0.0);
-            map.put("posY", t.getPosY() != null ? t.getPosY() : 0.0);
-            map.put("tableLabel", t.getTableLabel() != null ? t.getTableLabel() : "T" + t.getTableId());
-            map.put("shape", t.getShape() != null ? t.getShape() : "round");
+            Map<String, Object> map = buildTableMap(t);
             
-            // Find availability
             Optional<AvailabilityResponse> availabilityItem = availability.stream()
                     .filter(a -> a.getTableId().equals(t.getTableId()))
                     .findFirst();
@@ -78,16 +80,9 @@ public class TableLayoutController {
     @GetMapping("/{restaurantId}")
     public ResponseEntity<List<Map<String, Object>>> getLayout(@PathVariable Integer restaurantId) {
         List<RestaurantTable> tables = tableRepository.findByRestaurant_RestaurantId(restaurantId);
-        List<Map<String, Object>> result = tables.stream().map(t -> {
-            Map<String, Object> map = new LinkedHashMap<>();
-            map.put("tableId", t.getTableId());
-            map.put("capacity", t.getCapacity());
-            map.put("posX", t.getPosX() != null ? t.getPosX() : 0.0);
-            map.put("posY", t.getPosY() != null ? t.getPosY() : 0.0);
-            map.put("tableLabel", t.getTableLabel() != null ? t.getTableLabel() : "T" + t.getTableId());
-            map.put("shape", t.getShape() != null ? t.getShape() : "round");
-            return map;
-        }).collect(Collectors.toList());
+        List<Map<String, Object>> result = tables.stream()
+                .map(this::buildTableMap)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(result);
     }
 
@@ -108,6 +103,9 @@ public class TableLayoutController {
                 if (update.containsKey("posY")) {
                     table.setPosY(((Number) update.get("posY")).doubleValue());
                 }
+                if (update.containsKey("posZ")) {
+                    table.setPosZ(((Number) update.get("posZ")).doubleValue());
+                }
                 if (update.containsKey("tableLabel")) {
                     table.setTableLabel((String) update.get("tableLabel"));
                 }
@@ -116,6 +114,12 @@ public class TableLayoutController {
                 }
                 if (update.containsKey("capacity")) {
                     table.setCapacity(((Number) update.get("capacity")).intValue());
+                }
+                if (update.containsKey("floorNumber")) {
+                    table.setFloorNumber(((Number) update.get("floorNumber")).intValue());
+                }
+                if (update.containsKey("rotation")) {
+                    table.setRotation(((Number) update.get("rotation")).doubleValue());
                 }
                 tableRepository.save(table);
             });
@@ -139,19 +143,14 @@ public class TableLayoutController {
         table.setCapacity(body.containsKey("capacity") ? ((Number) body.get("capacity")).intValue() : 2);
         table.setPosX(body.containsKey("posX") ? ((Number) body.get("posX")).doubleValue() : 100.0);
         table.setPosY(body.containsKey("posY") ? ((Number) body.get("posY")).doubleValue() : 100.0);
+        table.setPosZ(body.containsKey("posZ") ? ((Number) body.get("posZ")).doubleValue() : 0.0);
         table.setTableLabel(body.containsKey("tableLabel") ? (String) body.get("tableLabel") : "New");
         table.setShape(body.containsKey("shape") ? (String) body.get("shape") : "round");
+        table.setFloorNumber(body.containsKey("floorNumber") ? ((Number) body.get("floorNumber")).intValue() : 1);
+        table.setRotation(body.containsKey("rotation") ? ((Number) body.get("rotation")).doubleValue() : 0.0);
 
         RestaurantTable saved = tableRepository.save(table);
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put("tableId", saved.getTableId());
-        result.put("capacity", saved.getCapacity());
-        result.put("posX", saved.getPosX());
-        result.put("posY", saved.getPosY());
-        result.put("tableLabel", saved.getTableLabel());
-        result.put("shape", saved.getShape());
-        return ResponseEntity.ok(result);
+        return ResponseEntity.ok(buildTableMap(saved));
     }
 
     /**
@@ -164,5 +163,20 @@ public class TableLayoutController {
         }
         tableRepository.deleteById(tableId);
         return ResponseEntity.ok(Map.of("message", "Table deleted"));
+    }
+
+    /** Helper to build the response map for a table. */
+    private Map<String, Object> buildTableMap(RestaurantTable t) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        map.put("tableId", t.getTableId());
+        map.put("capacity", t.getCapacity());
+        map.put("posX", t.getPosX() != null ? t.getPosX() : 0.0);
+        map.put("posY", t.getPosY() != null ? t.getPosY() : 0.0);
+        map.put("posZ", t.getPosZ() != null ? t.getPosZ() : 0.0);
+        map.put("tableLabel", t.getTableLabel() != null ? t.getTableLabel() : "T" + t.getTableId());
+        map.put("shape", t.getShape() != null ? t.getShape() : "round");
+        map.put("floorNumber", t.getFloorNumber() != null ? t.getFloorNumber() : 1);
+        map.put("rotation", t.getRotation() != null ? t.getRotation() : 0.0);
+        return map;
     }
 }

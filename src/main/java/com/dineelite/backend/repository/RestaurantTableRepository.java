@@ -31,6 +31,11 @@ public interface RestaurantTableRepository extends JpaRepository<RestaurantTable
         @Param("guestCount") Integer guestCount
     );
 
+    List<RestaurantTable> findByRestaurant_RestaurantIdAndFloorNumber(Integer restaurantId, Integer floorNumber);
+
+    @Query("SELECT DISTINCT t.floorNumber FROM RestaurantTable t WHERE t.restaurant.restaurantId = :restaurantId ORDER BY t.floorNumber")
+    List<Integer> findDistinctFloorNumbers(@Param("restaurantId") Integer restaurantId);
+
     @Modifying
     @Transactional
     @Query("DELETE FROM RestaurantTable t WHERE t.restaurant = :restaurant")

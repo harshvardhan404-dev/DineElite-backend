@@ -243,15 +243,37 @@ public class DataLoader {
     }
 
     private void addTables(Restaurant r, RestaurantTableRepository repo) {
-        int[] capacities = {2, 4, 6, 8};
-        for (int i = 0; i < capacities.length; i++) {
+        // Floor 1 — Ground Floor
+        int[] capacitiesF1 = {2, 4, 6, 8};
+        String[] shapesF1 = {"round", "square", "round", "rectangle"};
+        for (int i = 0; i < capacitiesF1.length; i++) {
             RestaurantTable t = new RestaurantTable();
             t.setRestaurant(r);
-            t.setCapacity(capacities[i]);
+            t.setCapacity(capacitiesF1[i]);
             t.setPosX(50.0 + (i * 150));
             t.setPosY(100.0);
-            t.setTableLabel("T" + (i + 1));
-            t.setShape(i % 2 == 0 ? "round" : "square");
+            t.setPosZ(0.0);
+            t.setTableLabel("G" + (i + 1));
+            t.setShape(shapesF1[i]);
+            t.setFloorNumber(1);
+            t.setRotation(i * 45.0);
+            repo.save(t);
+        }
+
+        // Floor 2 — Upper Floor / Rooftop
+        int[] capacitiesF2 = {2, 4, 6};
+        String[] shapesF2 = {"square", "round", "rectangle"};
+        for (int i = 0; i < capacitiesF2.length; i++) {
+            RestaurantTable t = new RestaurantTable();
+            t.setRestaurant(r);
+            t.setCapacity(capacitiesF2[i]);
+            t.setPosX(80.0 + (i * 160));
+            t.setPosY(120.0);
+            t.setPosZ(0.0);
+            t.setTableLabel("U" + (i + 1));
+            t.setShape(shapesF2[i]);
+            t.setFloorNumber(2);
+            t.setRotation(i * 30.0);
             repo.save(t);
         }
     }

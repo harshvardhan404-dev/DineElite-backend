@@ -30,6 +30,15 @@ public class RestaurantTable {
     @Column(name = "shape", length = 20)
     private String shape; // "round", "square", "rectangle"
 
+    @Column(name = "floor_number", nullable = false)
+    private Integer floorNumber = 1;
+
+    @Column(name = "pos_z")
+    private Double posZ;
+
+    @Column(name = "rotation")
+    private Double rotation;
+
     @Version
     private Integer version;
 
@@ -87,5 +96,29 @@ public class RestaurantTable {
 
     public void setShape(String shape) {
         this.shape = shape;
+    }
+
+    public Integer getFloorNumber() {
+        return floorNumber;
+    }
+
+    public void setFloorNumber(Integer floorNumber) {
+        this.floorNumber = floorNumber;
+    }
+
+    public Double getPosZ() {
+        return posZ;
+    }
+
+    public void setPosZ(Double posZ) {
+        this.posZ = posZ;
+    }
+
+    public Double getRotation() {
+        return rotation;
+    }
+
+    public void setRotation(Double rotation) {
+        this.rotation = rotation;
     }
 }
