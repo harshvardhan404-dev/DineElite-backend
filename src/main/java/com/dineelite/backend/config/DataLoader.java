@@ -52,19 +52,19 @@ public class DataLoader {
                 String hashedAdmin = passwordEncoder.encode("admin");
                 jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
                     "VALUES ('General Admin', 'admin@dineelite.com', '" + hashedAdmin + "', 'ADMIN', true) " +
-                    "ON CONFLICT (email) DO NOTHING");
+                    "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled");
                 
                 for (int i = 1; i <= 10; i++) {
                     String hashedPass = passwordEncoder.encode("password" + i);
                     jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
                         "VALUES ('Restaurant Admin " + i + "', 'admin" + i + "@dineelite.com', '" + hashedPass + "', 'ADMIN', true) " +
-                        "ON CONFLICT (email) DO NOTHING");
+                        "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled");
                 }
 
                 String hashedCustomer = passwordEncoder.encode("pass");
                 jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
                     "VALUES ('Rahul Sharma', 'rahul@test.com', '" + hashedCustomer + "', 'CUSTOMER', true) " +
-                    "ON CONFLICT (email) DO NOTHING");
+                    "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled");
 
                 // TEMPORARY CLEANUP: Delete specific users to allow re-registration
                 jdbcTemplate.execute("DELETE FROM users WHERE email IN ('harshvardhansonawane2@gmail.com', 'harshwardhansonawane099@gmail.com')");
