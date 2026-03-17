@@ -50,29 +50,40 @@ public class DataLoader {
             // 1. Create users using raw SQL (bypasses JPA transaction issues with Supabase pooler)
             try {
                 String hashedAdmin = passwordEncoder.encode("admin");
-                jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
-                    "VALUES ('General Admin', 'admin@dineelite.com', '" + hashedAdmin + "', 'ADMIN', true) " +
-                    "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled");
+                jdbcTemplate.update("INSERT INTO users (full_name, email, password, role, is_enabled) " +
+                    "VALUES (?, ?, ?, ?, ?) " +
+                    "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled",
+                    "General Admin", "admin@dineelite.com", hashedAdmin, "ADMIN", true);
                 
                 for (int i = 1; i <= 10; i++) {
                     String hashedPass = passwordEncoder.encode("password" + i);
-                    jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
-                        "VALUES ('Restaurant Admin " + i + "', 'admin" + i + "@dineelite.com', '" + hashedPass + "', 'ADMIN', true) " +
-                        "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled");
+                    jdbcTemplate.update("INSERT INTO users (full_name, email, password, role, is_enabled) " +
+                        "VALUES (?, ?, ?, ?, ?) " +
+                        "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled",
+                        "Restaurant Admin " + i, "admin" + i + "@dineelite.com", hashedPass, "ADMIN", true);
                 }
 
                 String hashedCustomer = passwordEncoder.encode("pass");
-                jdbcTemplate.execute("INSERT INTO users (full_name, email, password, role, is_enabled) " +
-                    "VALUES ('Rahul Sharma', 'rahul@test.com', '" + hashedCustomer + "', 'CUSTOMER', true) " +
-                    "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled");
+                jdbcTemplate.update("INSERT INTO users (full_name, email, password, role, is_enabled) " +
+                    "VALUES (?, ?, ?, ?, ?) " +
+                    "ON CONFLICT (email) DO UPDATE SET password = EXCLUDED.password, is_enabled = EXCLUDED.is_enabled",
+                    "Rahul Sharma", "rahul@test.com", hashedCustomer, "CUSTOMER", true);
 
                 // TEMPORARY CLEANUP: Delete specific users to allow re-registration
-                jdbcTemplate.execute("DELETE FROM users WHERE email IN ('harshvardhansonawane2@gmail.com', 'harshwardhansonawane099@gmail.com')");
-                System.out.println(">>> Cleanup: Deleted users harshvardhansonawane2@gmail.com and harshwardhansonawane099@gmail.com if they existed.");
-
+                jdbcTemplate.update("DELETE FROM users WHERE email IN (?, ?)", 
+                    "harshvardhansonawane2@gmail.com", "harshwardhansonawane099@gmail.com");
+                
                 System.out.println(">>> All base users ensured.");
             } catch (Exception e) {
                 System.out.println(">>> ERROR creating users: " + e.getMessage());
+                // Fallback for H2 (doesn't support ON CONFLICT)
+                try {
+                    jdbcTemplate.update("MERGE INTO users KEY(email) VALUES (NEXT VALUE FOR users_user_id_seq, 'General Admin', 'admin@dineelite.com', ?, 'ADMIN', true, null, null, null)", 
+                        passwordEncoder.encode("admin"));
+                    System.out.println(">>> H2 fallback successful for admin.");
+                } catch (Exception e2) {
+                    System.out.println(">>> H2 fallback failed: " + e2.getMessage());
+                }
             }
 
             // 2. Seed restaurants and their dependencies (Menu, Tables, Slots)
@@ -81,12 +92,16 @@ public class DataLoader {
                 System.out.println(">>> Checking data seeding... (existing: " + existingCount + ")");
                 
                 // CRITICAL: Fast one-time global cleanup to fix millions of corrupted duplicate rows
-                System.out.println(">>> PERFORMING GLOBAL FAST TRUNCATE OF CORRUPTED DATA...");
-                jdbcTemplate.execute("TRUNCATE TABLE advertisements CASCADE");
-                jdbcTemplate.execute("TRUNCATE TABLE menu_items CASCADE");
-                jdbcTemplate.execute("TRUNCATE TABLE restaurant_tables CASCADE");
-                jdbcTemplate.execute("TRUNCATE TABLE time_slots CASCADE");
-                System.out.println(">>> TRUNCATE COMPLETE. Re-seeding clean data...");
+                System.out.println(">>> PERFORMING GLOBAL FAST CLEANUP OF CORRUPTED DATA...");
+                try {
+                    jdbcTemplate.execute("DELETE FROM advertisements");
+                    jdbcTemplate.execute("DELETE FROM menu_items");
+                    jdbcTemplate.execute("DELETE FROM restaurant_tables");
+                    jdbcTemplate.execute("DELETE FROM time_slots");
+                } catch (Exception e) {
+                    System.out.println(">>> Cleanup note: " + e.getMessage());
+                }
+                System.out.println(">>> CLEANUP COMPLETE. Re-seeding clean data...");
 
                 String[][] restaurantData = {
                     {"Fine Dine Palace", "Pune", "09:00", "22:00", "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4", "500", "Luxury dining with the finest global cuisine.", "Global", "18.5204", "73.8567"},
