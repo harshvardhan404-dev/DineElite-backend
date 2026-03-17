@@ -30,7 +30,7 @@ public class RestaurantTable {
     @Column(name = "shape", length = 20)
     private String shape; // "round", "square", "rectangle"
 
-    @Column(name = "floor_number", nullable = false)
+    @Column(name = "floor_number")
     private Integer floorNumber = 1;
 
     @Column(name = "pos_z")
