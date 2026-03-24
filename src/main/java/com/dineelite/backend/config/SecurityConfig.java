@@ -109,6 +109,7 @@ public class SecurityConfig {
         allowedOrigins.add("http://localhost:4200");
         allowedOrigins.add("https://dineelite.netlify.app");
         allowedOrigins.add("https://admirable-tarsier-c00d50.netlify.app");
+        allowedOrigins.add("https://dineelite-backend.onrender.com");
         
         if (frontendUrl != null && !frontendUrl.isEmpty()) {
             allowedOrigins.add(frontendUrl);
